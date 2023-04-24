@@ -72,6 +72,10 @@
     <module>org.eclipse.tracecompass.incubator.system</module>
     <module>org.eclipse.tracecompass.incubator.system.core</module>
     <module>org.eclipse.tracecompass.incubator.system.core.tests</module>
+    <module>org.eclipse.tracecompass.incubator.otel</module>
+    <module>org.eclipse.tracecompass.incubator.otel.core</module>
+    <module>org.eclipse.tracecompass.incubator.otel.core.tests</module>
+    <module>org.eclipse.tracecompass.incubator.otel.ui</module>
     <!-- insert modules here -->
   </modules>
 
