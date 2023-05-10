@@ -3,7 +3,7 @@ Bundle-ManifestVersion: 2
 Bundle-Name: %Bundle-Name
 Bundle-Vendor: %Bundle-Vendor
 Bundle-SymbolicName: org.eclipse.tracecompass.incubator.otel.core;singleton:=true
-Bundle-Version: 0.1.0.qualifier
+Bundle-Version: 0.1.1.qualifier
 Bundle-Localization: plugin
 Bundle-Activator: org.eclipse.tracecompass.incubator.internal.otel.core.Activator
 Bundle-ActivationPolicy: lazy
@@ -27,6 +27,16 @@ Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.jdt.annotation;bundle-version="[2.0.0,3.0.0)";resolution:=optional,
  com.google.guava,
  wrapped.io.opentelemetry.opentelemetry-proto;bundle-version="1.7.1",
- com.google.protobuf;bundle-version="3.18.1"
-Export-Package: org.eclipse.tracecompass.incubator.internal.otel.core;x-friends:="org.eclipse.tracecompass.incubator.otel.core.tests"
+ com.google.protobuf;bundle-version="3.18.1",
+ wrapped.io.opentelemetry.opentelemetry-semconv;bundle-version="1.25.0",
+ wrapped.io.opentelemetry.opentelemetry-api
+Export-Package: org.eclipse.tracecompass.incubator.internal.otel.core;x-friends:="org.eclipse.tracecompass.incubator.otel.core.tests",
+ org.eclipse.tracecompass.incubator.internal.otel.core.analysis.spanlife,
+ org.eclipse.tracecompass.incubator.internal.otel.core.aspect,
+ org.eclipse.tracecompass.incubator.internal.otel.core.trace
+Import-Package: org.eclipse.tracecompass.incubator.internal.opentracing.core.analysis.spanlife,
+ org.eclipse.tracecompass.incubator.internal.otel.core,
+ org.eclipse.tracecompass.incubator.internal.otel.core.analysis.spanlife,
+ org.eclipse.tracecompass.incubator.internal.otel.core.aspect,
+ org.eclipse.tracecompass.incubator.internal.otel.core.trace
 Automatic-Module-Name: org.eclipse.tracecompass.incubator.otel.core

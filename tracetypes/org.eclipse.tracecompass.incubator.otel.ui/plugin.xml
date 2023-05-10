@@ -8,5 +8,31 @@
             tracetype="org.eclipse.tracecompass.incubator.otel.tracetype">
       </type>
    </extension>
+   <extension
+         point="org.eclipse.ui.views">
+      <category
+            id="org.eclipse.tracecompass.incubator.internal.otel.ui.views.category"
+            name="%otel.name"
+            parentCategory="org.eclipse.linuxtools.tmf.ui.views.category">
+      </category>
+      <view
+            category="org.eclipse.tracecompass.incubator.internal.otel.ui.views.category"
+            class="org.eclipse.tracecompass.incubator.internal.otel.ui.view.spanlife.SpanLifeView"
+            icon="icons/spanslife.png"
+            id="org.eclipse.tracecompass.incubator.otel.ui.view.spanlife.view"
+            name="Spans Life"
+            restorable="true">
+      </view>
+   </extension>
+   <extension
+         point="org.eclipse.linuxtools.tmf.core.analysis">
+      <output
+            class="org.eclipse.tracecompass.tmf.ui.analysis.TmfAnalysisViewOutput"
+            id="org.eclipse.tracecompass.incubator.otel.ui.view.spanlife.view">
+         <analysisModuleClass
+               class="org.eclipse.tracecompass.incubator.internal.otel.core.analysis.spanlife.SpanLifeAnalysis">
+         </analysisModuleClass>
+      </output>
+   </extension>
 
 </plugin>

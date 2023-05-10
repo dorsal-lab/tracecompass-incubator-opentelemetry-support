@@ -5,12 +5,33 @@
          point="org.eclipse.linuxtools.tmf.core.tracetype">
       <type
             category="org.eclipse.linuxtools.tmf.ctf.core.category.ctf"
-            event_type="org.eclipse.tracecompass.lttng2.ust.core.trace.LttngUstEvent"
+            event_type="org.eclipse.tracecompass.incubator.internal.otel.core.trace.OtelSortedEvent"
             id="org.eclipse.tracecompass.incubator.otel.tracetype"
             isDirectory="true"
             name="%tracetype.type.otel"
-            trace_type="org.eclipse.tracecompass.incubator.internal.otel.core.trace.OtelTrace">
+            trace_type="org.eclipse.tracecompass.incubator.internal.otel.core.trace.OtelSortedTrace">
       </type>
+   </extension>
+   <extension
+         point="org.eclipse.linuxtools.tmf.core.analysis">
+      <module
+            analysis_module="org.eclipse.tracecompass.incubator.internal.otel.core.analysis.spanlife.SpanLifeAnalysis"
+            automatic="true"
+            icon="icons/spanslife.png"
+            id="org.eclipse.tracecompass.incubator.otel.analysis.spanlife"
+            name="Span Life">
+         <tracetype
+               applies="true"
+               class="org.eclipse.tracecompass.incubator.internal.otel.core.trace.OtelSortedTrace">
+         </tracetype>
+      </module>
+   </extension>
+   <extension
+         point="org.eclipse.tracecompass.tmf.core.dataprovider">
+      <dataProviderFactory
+            class="org.eclipse.tracecompass.incubator.internal.otel.core.analysis.spanlife.SpanLifeDataProviderFactory"
+            id="org.eclipse.tracecompass.incubator.otel.analysis.spanlife.dataprovider">
+      </dataProviderFactory>
    </extension>
 
 </plugin>

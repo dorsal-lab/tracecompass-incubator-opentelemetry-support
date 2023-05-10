@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2023 Polytechnique Montreal
+ * Copyright (c) 2018 Ericsson
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License 2.0 which
@@ -12,6 +12,8 @@
 package org.eclipse.tracecompass.incubator.internal.otel.ui;
 
 import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.jface.resource.ImageDescriptor;
+import org.eclipse.swt.graphics.Image;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
 
@@ -30,6 +32,7 @@ public class Activator extends AbstractUIPlugin {
      * The constructor
      */
     public Activator() {
+        // Do nothing
     }
 
     @Override
@@ -53,5 +56,29 @@ public class Activator extends AbstractUIPlugin {
         return plugin;
     }
 
-}
+    /**
+     * Gets an image object using given path within plug-in.
+     *
+     * @param path
+     *            path to image file
+     *
+     * @return image object
+     */
+    public @Nullable Image getImageFromPath(String path) {
+        ImageDescriptor imageDescripterFromPath = getImageDescripterFromPath(path);
+        return imageDescripterFromPath == null ? null : imageDescripterFromPath.createImage();
+    }
 
+    /**
+     * Gets an image descriptor using given path within plug-in.
+     *
+     * @param path
+     *            path to image file
+     *
+     * @return image descriptor object
+     */
+    public @Nullable ImageDescriptor getImageDescripterFromPath(String path) {
+        return AbstractUIPlugin.imageDescriptorFromPlugin(PLUGIN_ID, path);
+    }
+
+}

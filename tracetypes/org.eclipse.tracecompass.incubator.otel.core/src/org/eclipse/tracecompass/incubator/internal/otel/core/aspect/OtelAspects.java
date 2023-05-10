@@ -15,13 +15,12 @@ import java.util.Collection;
 
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.tracecompass.incubator.internal.otel.core.trace.OtelEvent;
+import org.eclipse.tracecompass.incubator.internal.otel.core.trace.OtelSortedEvent;
 import org.eclipse.tracecompass.incubator.internal.otel.core.trace.OtelTrace;
 import org.eclipse.tracecompass.tmf.core.event.ITmfEvent;
 import org.eclipse.tracecompass.tmf.core.event.aspect.ITmfEventAspect;
 import com.google.common.collect.ImmutableList;
-import com.google.protobuf.InvalidProtocolBufferException;
-
-import org.eclipse.tracecompass.tmf.ctf.core.event.CtfTmfEventField;
 import io.opentelemetry.proto.metrics.v1.ResourceMetrics;
 import io.opentelemetry.proto.trace.v1.ResourceSpans;
 
@@ -32,88 +31,17 @@ import io.opentelemetry.proto.trace.v1.ResourceSpans;
  */
 public final class OtelAspects {
 
-    private static final @NonNull ITmfEventAspect<ResourceSpans> RESOURCE_SPANS_ASPECT = new ITmfEventAspect<ResourceSpans>() {
-
-        private static final String RESOURCE_SPANS_FIELD_NAME = "resource_spans"; //$NON-NLS-1$
-
-        @Override
-        public String getName() {
-            return Messages.getMessage(Messages.AspectName_ResourceSpans);
-        }
-
-        @Override
-        public String getHelpText() {
-            return Messages.getMessage(Messages.AspectHelpText_ResourceSpans);
-        }
-
-        @Override
-        public @Nullable ResourceSpans resolve(ITmfEvent event) {
-            CtfTmfEventField ctfField = (CtfTmfEventField) event.getContent().getField(RESOURCE_SPANS_FIELD_NAME);
-            if (ctfField == null) {
-                return null;
-            }
-
-            long[] longArr;
-            try {
-                longArr = (long[]) ctfField.getValue();
-            } catch (ClassCastException e) {
-                return null;
-            }
-
-            byte[] bytes = createByteArray(longArr);
-
-            try {
-                return ResourceSpans.parseFrom(bytes);
-            } catch (InvalidProtocolBufferException e) {
-                return null;
-            }
-        }
-    };
-
-    private static final @NonNull ITmfEventAspect<ResourceMetrics> RESOURCE_METRICS_ASPECT = new ITmfEventAspect<ResourceMetrics>() {
-
-        private static final String RESOURCE_METRICS_FIELD_NAME = "resource_metrics"; //$NON-NLS-1$
-
-        @Override
-        public String getName() {
-            return Messages.getMessage(Messages.AspectName_ResourceMetrics);
-        }
-
-        @Override
-        public String getHelpText() {
-            return Messages.getMessage(Messages.AspectHelpText_ResourceMetrics);
-        }
-
-        @Override
-        public @Nullable ResourceMetrics resolve(ITmfEvent event) {
-            CtfTmfEventField ctfField = (CtfTmfEventField) event.getContent().getField(RESOURCE_METRICS_FIELD_NAME);
-            if (ctfField == null) {
-                return null;
-            }
-
-            long[] longArr;
-            try {
-                longArr = (long[]) ctfField.getValue();
-            } catch (ClassCastException e) {
-                return null;
-            }
-
-            byte[] bytes = createByteArray(longArr);
-
-            try {
-                return ResourceMetrics.parseFrom(bytes);
-            } catch (InvalidProtocolBufferException e) {
-                return null;
-            }
-        }
-    };
-
-    private static final @NonNull Collection<ITmfEventAspect<?>> ASPECTS = ImmutableList.of(
+    private static final @NonNull Collection<IOtelAspect<?>> ASPECTS = ImmutableList.of(
             getResourceSpansAspect(),
             getResourceMetricsAspect());
 
-    private OtelAspects() {
-
+    /**
+     * Get the list of all common base aspects
+     *
+     * @return the list of base aspects
+     */
+    public static @NonNull Collection<IOtelAspect<?>> getAspects() {
+        return ASPECTS;
     }
 
     /**
@@ -121,8 +49,24 @@ public final class OtelAspects {
      *
      * @return The resource spans aspect
      */
-    public static @NonNull ITmfEventAspect<ResourceSpans> getResourceSpansAspect() {
-        return RESOURCE_SPANS_ASPECT;
+    private static @NonNull IOtelAspect<ResourceSpans> getResourceSpansAspect() {
+        return new IOtelAspect<ResourceSpans>() {
+
+            @Override
+            public String getName() {
+                return Messages.getMessage(Messages.AspectName_ResourceSpans);
+            }
+
+            @Override
+            public String getHelpText() {
+                return Messages.getMessage(Messages.AspectHelpText_ResourceSpans);
+            }
+
+            @Override
+            public @Nullable ResourceSpans resolveOtelEvent(@NonNull OtelSortedEvent event) {
+                return event.getResourceSpans();
+            }
+        };
     }
 
     /**
@@ -130,25 +74,46 @@ public final class OtelAspects {
      *
      * @return The resource metrics aspect
      */
-    public static @NonNull ITmfEventAspect<ResourceMetrics> getResourceMetricsAspect() {
-        return RESOURCE_METRICS_ASPECT;
+    private static @NonNull IOtelAspect<ResourceMetrics> getResourceMetricsAspect() {
+        return new IOtelAspect<ResourceMetrics>() {
+
+            @Override
+            public String getName() {
+                return Messages.getMessage(Messages.AspectName_ResourceMetrics);
+            }
+
+            @Override
+            public String getHelpText() {
+                return Messages.getMessage(Messages.AspectHelpText_ResourceMetrics);
+            }
+
+            @Override
+            public @Nullable ResourceMetrics resolveOtelEvent(@NonNull OtelSortedEvent event) {
+                return event.getResourceMetrics();
+            }
+        };
     }
 
-    /**
-     * Get the list of all common base aspects
-     *
-     * @return the list of base aspects
-     */
-    public static @NonNull Collection<ITmfEventAspect<?>> getAspects() {
-        return ASPECTS;
-    }
+    private interface IOtelAspect<T> extends ITmfEventAspect<T> {
 
-    private static byte[] createByteArray(long[] arr) {
-        byte[] bytes = new byte[arr.length];
-        for (int i = 0; i < arr.length; i++) {
-            bytes[i] = (byte) arr[i];
+        @Override
+        default @Nullable T resolve(@NonNull ITmfEvent event) {
+            if (event instanceof OtelSortedEvent) {
+                return resolveOtelEvent((OtelSortedEvent) event);
+            }
+            return null;
         }
-        return bytes;
+
+        /**
+         * {@link IOtelAspect#resolve(ITmfEvent)} equivalent for
+         * {@link OtelEvent}
+         *
+         * @param event
+         *            The event
+         * @return Corresponding resource
+         */
+        public T resolveOtelEvent(@NonNull OtelSortedEvent event);
+
     }
 
 }
