@@ -16,7 +16,6 @@ import java.util.Collection;
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.tracecompass.incubator.internal.otel.core.trace.OtelEvent;
-import org.eclipse.tracecompass.incubator.internal.otel.core.trace.OtelSortedEvent;
 import org.eclipse.tracecompass.incubator.internal.otel.core.trace.OtelTrace;
 import org.eclipse.tracecompass.tmf.core.event.ITmfEvent;
 import org.eclipse.tracecompass.tmf.core.event.aspect.ITmfEventAspect;
@@ -63,7 +62,7 @@ public final class OtelAspects {
             }
 
             @Override
-            public @Nullable ResourceSpans resolveOtelEvent(@NonNull OtelSortedEvent event) {
+            public @Nullable ResourceSpans resolveOtelEvent(@NonNull OtelEvent event) {
                 return event.getResourceSpans();
             }
         };
@@ -88,7 +87,7 @@ public final class OtelAspects {
             }
 
             @Override
-            public @Nullable ResourceMetrics resolveOtelEvent(@NonNull OtelSortedEvent event) {
+            public @Nullable ResourceMetrics resolveOtelEvent(@NonNull OtelEvent event) {
                 return event.getResourceMetrics();
             }
         };
@@ -98,8 +97,8 @@ public final class OtelAspects {
 
         @Override
         default @Nullable T resolve(@NonNull ITmfEvent event) {
-            if (event instanceof OtelSortedEvent) {
-                return resolveOtelEvent((OtelSortedEvent) event);
+            if (event instanceof OtelEvent) {
+                return resolveOtelEvent((OtelEvent) event);
             }
             return null;
         }
@@ -112,7 +111,7 @@ public final class OtelAspects {
          *            The event
          * @return Corresponding resource
          */
-        public T resolveOtelEvent(@NonNull OtelSortedEvent event);
+        public T resolveOtelEvent(@NonNull OtelEvent event);
 
     }
 

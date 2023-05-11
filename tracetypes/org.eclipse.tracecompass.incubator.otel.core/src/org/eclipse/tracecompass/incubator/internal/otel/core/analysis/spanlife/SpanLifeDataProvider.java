@@ -236,7 +236,7 @@ public class SpanLifeDataProvider extends AbstractTimeGraphDataProvider<@NonNull
 
         int openTracingSpansQuark;
         try {
-            openTracingSpansQuark = ss.getQuarkRelative(quark, SpanLifeStateProvider.OPEN_TRACING_ATTRIBUTE);
+            openTracingSpansQuark = ss.getQuarkRelative(quark, SpanLifeStateProvider.OTEL_SPANS_ATTRIBUTE);
         } catch (AttributeNotFoundException e) {
             return;
         }

@@ -5,12 +5,18 @@
          point="org.eclipse.linuxtools.tmf.core.tracetype">
       <type
             category="org.eclipse.linuxtools.tmf.ctf.core.category.ctf"
-            event_type="org.eclipse.tracecompass.incubator.internal.otel.core.trace.OtelSortedEvent"
+            event_type="org.eclipse.tracecompass.incubator.internal.otel.core.trace.OtelEvent"
             id="org.eclipse.tracecompass.incubator.otel.tracetype"
             isDirectory="true"
             name="%tracetype.type.otel"
-            trace_type="org.eclipse.tracecompass.incubator.internal.otel.core.trace.OtelSortedTrace">
+            trace_type="org.eclipse.tracecompass.incubator.internal.otel.core.trace.OtelTrace">
       </type>
+      <experiment
+            category="org.eclipse.tracecompass.incubator.otel.core"
+            experiment_type="org.eclipse.tracecompass.incubator.internal.otel.core.trace.OtelExperiment"
+            id="org.eclipse.tracecompass.incubator.otel.core.experiment"
+            name="OpenTelemetry Experiment">
+      </experiment>
    </extension>
    <extension
          point="org.eclipse.linuxtools.tmf.core.analysis">
@@ -22,7 +28,11 @@
             name="Span Life">
          <tracetype
                applies="true"
-               class="org.eclipse.tracecompass.incubator.internal.otel.core.trace.OtelSortedTrace">
+               class="org.eclipse.tracecompass.incubator.internal.otel.core.trace.OtelTrace">
+         </tracetype>
+         <tracetype
+               applies="true"
+               class="org.eclipse.tracecompass.incubator.internal.otel.core.trace.OtelExperiment">
          </tracetype>
       </module>
    </extension>

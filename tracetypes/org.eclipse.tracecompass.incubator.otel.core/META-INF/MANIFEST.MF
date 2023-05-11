@@ -34,7 +34,8 @@ Export-Package: org.eclipse.tracecompass.incubator.internal.otel.core;x-friends:
  org.eclipse.tracecompass.incubator.internal.otel.core.analysis.spanlife,
  org.eclipse.tracecompass.incubator.internal.otel.core.aspect,
  org.eclipse.tracecompass.incubator.internal.otel.core.trace
-Import-Package: org.eclipse.tracecompass.incubator.internal.opentracing.core.analysis.spanlife,
+Import-Package: org.apache.commons.lang3.tuple;version="3.12.0",
+ org.eclipse.tracecompass.incubator.internal.opentracing.core.analysis.spanlife,
  org.eclipse.tracecompass.incubator.internal.otel.core,
  org.eclipse.tracecompass.incubator.internal.otel.core.analysis.spanlife,
  org.eclipse.tracecompass.incubator.internal.otel.core.aspect,
