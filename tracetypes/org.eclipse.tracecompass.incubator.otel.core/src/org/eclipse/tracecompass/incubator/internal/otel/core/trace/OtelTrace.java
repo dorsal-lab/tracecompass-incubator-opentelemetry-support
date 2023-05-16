@@ -14,20 +14,24 @@ package org.eclipse.tracecompass.incubator.internal.otel.core.trace;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.tracecompass.incubator.internal.otel.core.Activator;
-import org.eclipse.tracecompass.incubator.internal.otel.core.aspect.OtelAspects;
 import org.eclipse.tracecompass.lttng2.ust.core.trace.LttngUstEvent;
 import org.eclipse.tracecompass.lttng2.ust.core.trace.LttngUstTrace;
 import org.eclipse.tracecompass.tmf.core.event.ITmfEvent;
-import org.eclipse.tracecompass.tmf.core.event.ITmfLostEvent;
+import org.eclipse.tracecompass.tmf.core.event.ITmfEventField;
+import org.eclipse.tracecompass.tmf.core.event.ITmfEventType;
+import org.eclipse.tracecompass.tmf.core.event.TmfEventField;
+import org.eclipse.tracecompass.tmf.core.event.TmfEventType;
 import org.eclipse.tracecompass.tmf.core.event.aspect.ITmfEventAspect;
 import org.eclipse.tracecompass.tmf.core.event.aspect.TmfBaseAspects;
 import org.eclipse.tracecompass.tmf.core.exceptions.TmfTraceException;
@@ -44,10 +48,15 @@ import org.eclipse.tracecompass.tmf.ctf.core.trace.CtfTmfTrace;
 import org.eclipse.tracecompass.tmf.ctf.core.trace.CtfTraceValidationStatus;
 
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Streams;
 import com.google.protobuf.InvalidProtocolBufferException;
 
+import io.opentelemetry.proto.common.v1.InstrumentationLibrary;
 import io.opentelemetry.proto.metrics.v1.ResourceMetrics;
+import io.opentelemetry.proto.resource.v1.Resource;
+import io.opentelemetry.proto.trace.v1.InstrumentationLibrarySpans;
 import io.opentelemetry.proto.trace.v1.ResourceSpans;
+import io.opentelemetry.proto.trace.v1.Span;
 
 /**
  * Class which contains OpenTelemetry traces.
@@ -64,7 +73,7 @@ public class OtelTrace extends TmfTrace {
         ImmutableSet.Builder<ITmfEventAspect<?>> builder = ImmutableSet.builder();
         builder.add(TmfBaseAspects.getTimestampAspect());
         builder.add(TmfBaseAspects.getEventTypeAspect());
-        builder.addAll(OtelAspects.getAspects());
+        builder.add(TmfBaseAspects.getContentsAspect());
         OTEL_ASPECTS = builder.build();
     }
 
@@ -101,41 +110,9 @@ public class OtelTrace extends TmfTrace {
     @Override
     public void initTrace(IResource resource, String path, Class<? extends ITmfEvent> type) throws TmfTraceException {
         super.initTrace(resource, path, type);
-
-        fCurrent = new TmfLongLocation(0L);
-        LttngUstTrace lttngUstTrace = new LttngUstTrace();
-
-        try {
-            lttngUstTrace.initTrace(resource, path, type);
-            ITmfContext context = lttngUstTrace.seekEvent(0.0);
-
-            for (long rank = 0;; rank++) {
-                LttngUstEvent lttngEvent = (LttngUstEvent) lttngUstTrace.getNext(context);
-                if (lttngEvent == null) {
-                    break;
-                }
-                ResourceSpans resourceSpans = getResourceSpansFromEvent(lttngEvent);
-                ResourceMetrics resourceMetrics = getResourceMetricsFromEvent(lttngEvent);
-                Pair<@NonNull ITmfTimestamp, @NonNull ITmfTimestamp> tsRange = OtelEvent.getStartAndEndTimeStamp(lttngEvent.getTimestamp(), resourceSpans, resourceMetrics);
-                OtelEvent event = new OtelEvent(
-                        this,
-                        rank,
-                        tsRange.getLeft(),
-                        tsRange.getRight(),
-                        lttngEvent.getType(),
-                        lttngEvent.getContent(),
-                        resourceSpans,
-                        resourceMetrics);
-                fEvents.add(event);
-            }
-
-            fEvents.sort((evt1, evt2) -> evt1.getTimestamp().compareTo(evt2.getTimestamp()));
-            fNbEvents = fEvents.size();
-
-        } finally {
-            lttngUstTrace.dispose();
-        }
-
+        List<Timestamped<? extends RawEvent>> events = getUnsortedEvents(resource, path, type);
+        fEvents = sortEvents(events, this);
+        fNbEvents = fEvents.size();
     }
 
     @Override
@@ -185,28 +162,56 @@ public class OtelTrace extends TmfTrace {
         return fNbEvents;
     }
 
-    @Override
-    protected synchronized void updateAttributes(final ITmfContext context, final @NonNull ITmfEvent event) {
-        ITmfTimestamp timestamp = event.getTimestamp();
-        ITmfTimestamp endTime = ((OtelEvent) event).getEndTimestamp();
-        if (event instanceof ITmfLostEvent) {
-            endTime = ((ITmfLostEvent) event).getTimeRange().getEndTime();
-        }
-        if (getStartTime().equals(TmfTimestamp.BIG_BANG) || (getStartTime().compareTo(timestamp) > 0)) {
-            setStartTime(timestamp);
-        }
-        if (getEndTime().equals(TmfTimestamp.BIG_CRUNCH) || (getEndTime().compareTo(endTime) < 0)) {
-            setEndTime(endTime);
-        }
-        if (context.hasValidRank()) {
-            long rank = context.getRank();
-            if (fNbEvents <= rank) {
-                fNbEvents = rank + 1;
+    private List<Timestamped<? extends RawEvent>> getUnsortedEvents(IResource resource, String path, Class<? extends ITmfEvent> type) throws TmfTraceException {
+        List<Timestamped<? extends RawEvent>> events = new ArrayList<>();
+
+        fCurrent = new TmfLongLocation(0L);
+        LttngUstTrace lttngUstTrace = new LttngUstTrace();
+
+        try {
+            lttngUstTrace.initTrace(resource, path, type);
+            ITmfContext context = lttngUstTrace.seekEvent(0.0);
+
+            while (true) {
+                LttngUstEvent lttngEvent = (LttngUstEvent) lttngUstTrace.getNext(context);
+                if (lttngEvent == null) {
+                    break;
+                }
+                ResourceSpans resourceSpans = getResourceSpansFromEvent(lttngEvent);
+                ResourceMetrics resourceMetrics = getResourceMetricsFromEvent(lttngEvent);
+                if (resourceSpans == null && resourceMetrics == null) {
+                    continue;
+                }
+                if (resourceSpans != null) {
+                    Resource traceResource = resourceSpans.getResource();
+                    String resourceSchemaUrl = resourceSpans.getSchemaUrl();
+                    for (InstrumentationLibrarySpans ilSpans : resourceSpans.getInstrumentationLibrarySpansList()) {
+                        InstrumentationLibrary instrumentationLibrary = ilSpans.getInstrumentationLibrary();
+                        String instrumentationLibrarySchemaUrl = ilSpans.getSchemaUrl();
+                        for (Span span : ilSpans.getSpansList()) {
+                            SpanStartEvent spanStartData = new SpanStartEvent(traceResource, resourceSchemaUrl, instrumentationLibrary, instrumentationLibrarySchemaUrl, span);
+                            events.add(new Timestamped<>(span.getStartTimeUnixNano(), spanStartData));
+                            SpanEndEvent spanEndData = new SpanEndEvent(traceResource, resourceSchemaUrl, instrumentationLibrary, instrumentationLibrarySchemaUrl, span);
+                            events.add(new Timestamped<>(span.getEndTimeUnixNano(), spanEndData));
+                        }
+                    }
+                }
+                if (resourceMetrics != null) {
+                    // TODO : Handle metrics events
+                }
             }
-            if (getIndexer() != null) {
-                getIndexer().updateIndex(context, timestamp);
-            }
+
+        } finally {
+            lttngUstTrace.dispose();
         }
+
+        return events;
+    }
+
+    @SuppressWarnings("null")
+    private static List<OtelEvent> sortEvents(List<Timestamped<? extends RawEvent>> events, @NonNull OtelTrace trace) {
+        Collections.sort(events, Comparator.comparing(Timestamped<? extends RawEvent>::getTimestamp));
+        return Streams.mapWithIndex(events.stream(), (event, rank) -> event.getData().createEvent(trace, rank)).collect(Collectors.toList());
     }
 
     private static ResourceSpans getResourceSpansFromEvent(LttngUstEvent event) {
@@ -251,6 +256,112 @@ public class OtelTrace extends TmfTrace {
             bytes[i] = (byte) longArr[i];
         }
         return bytes;
+    }
+
+}
+
+interface RawEvent {
+    OtelEvent createEvent(@NonNull OtelTrace trace, long rank);
+}
+
+class Timestamped<T> {
+    private long fTimestamp;
+    private T fData;
+
+    public Timestamped(long timestamp, T data) {
+        fTimestamp = timestamp;
+        fData = data;
+    }
+
+    long getTimestamp() {
+        return fTimestamp;
+    }
+
+    T getData() {
+        return fData;
+    }
+}
+
+abstract class SpanEvent implements RawEvent {
+    private Resource fResource;
+    private String fResourceSchemaUrl;
+    private InstrumentationLibrary fInstrumentationLibrary;
+    private String fInstrumentationLibrarySchemaUrl;
+    private Span fSpan;
+
+    public SpanEvent(
+            Resource resource,
+            String resourceSchemaUrl,
+            InstrumentationLibrary instrumentationLibrary,
+            String instrumentationLibrarySchemaUrl,
+            Span span) {
+        super();
+        fResource = resource;
+        fResourceSchemaUrl = resourceSchemaUrl;
+        fInstrumentationLibrary = instrumentationLibrary;
+        fInstrumentationLibrarySchemaUrl = instrumentationLibrarySchemaUrl;
+        fSpan = span;
+    }
+
+    public Resource getResource() {
+        return fResource;
+    }
+
+    public String getResourceSchemaUrl() {
+        return fResourceSchemaUrl;
+    }
+
+    public InstrumentationLibrary getInstrumentationLibrary() {
+        return fInstrumentationLibrary;
+    }
+
+    public String getInstrumentationLibrarySchemaUrl() {
+        return fInstrumentationLibrarySchemaUrl;
+    }
+
+    public Span getSpan() {
+        return fSpan;
+    }
+
+    public OtelEvent createEvent(OtelTrace trace, long rank, @NonNull ITmfTimestamp timestamp, @NonNull String eventId) {
+        ITmfEventField eventContent = new TmfEventField(
+                ITmfEventField.ROOT_FIELD_ID,
+                null,
+                new TmfEventField[] {
+                        new TmfEventField(Constants.SpanEvents.Fields.RESOURCE, fResource, null),
+                        new TmfEventField(Constants.SpanEvents.Fields.RESOURCE_SCHEMA_URL, fResourceSchemaUrl, null),
+                        new TmfEventField(Constants.SpanEvents.Fields.INSTRUMENTATION_LIBRARY, fInstrumentationLibrary, null),
+                        new TmfEventField(Constants.SpanEvents.Fields.INSTRUMENTATION_LIBRARY_SCHEMA_URL, fInstrumentationLibrarySchemaUrl, null),
+                        new TmfEventField(Constants.SpanEvents.Fields.SPAN, fSpan, null),
+                });
+        ITmfEventType eventType = new TmfEventType(eventId, eventContent);
+        return new OtelEvent(trace, rank, timestamp, eventType, eventContent);
+    }
+
+}
+
+class SpanStartEvent extends SpanEvent {
+
+    public SpanStartEvent(Resource resource, String resourceSchemaUrl, InstrumentationLibrary instrumentationLibrary, String instrumentationLibrarySchemaUrl, Span span) {
+        super(resource, resourceSchemaUrl, instrumentationLibrary, instrumentationLibrarySchemaUrl, span);
+    }
+
+    @Override
+    public OtelEvent createEvent(@NonNull OtelTrace trace, long rank) {
+        return super.createEvent(trace, rank, TmfTimestamp.fromNanos(getSpan().getStartTimeUnixNano()), Constants.SpanEvents.START_SPAN_EVENT_TYPE_ID);
+    }
+
+}
+
+class SpanEndEvent extends SpanEvent {
+
+    public SpanEndEvent(Resource resource, String resourceSchemaUrl, InstrumentationLibrary instrumentationLibrary, String instrumentationLibrarySchemaUrl, Span span) {
+        super(resource, resourceSchemaUrl, instrumentationLibrary, instrumentationLibrarySchemaUrl, span);
+    }
+
+    @Override
+    public OtelEvent createEvent(@NonNull OtelTrace trace, long rank) {
+        return super.createEvent(trace, rank, TmfTimestamp.fromNanos(getSpan().getEndTimeUnixNano()), Constants.SpanEvents.END_SPAN_EVENT_TYPE_ID);
     }
 
 }

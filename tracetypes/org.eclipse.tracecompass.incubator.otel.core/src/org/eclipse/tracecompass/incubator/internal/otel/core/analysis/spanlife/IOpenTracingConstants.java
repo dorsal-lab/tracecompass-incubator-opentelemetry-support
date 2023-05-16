@@ -59,6 +59,10 @@ public interface IOpenTracingConstants {
      */
     String LOGS = "logs"; //$NON-NLS-1$
     /**
+     * logs field name
+     */
+    String RESOURCES = "resources"; //$NON-NLS-1$
+    /**
      * processID field name
      */
     String PROCESS_ID = "processID"; //$NON-NLS-1$

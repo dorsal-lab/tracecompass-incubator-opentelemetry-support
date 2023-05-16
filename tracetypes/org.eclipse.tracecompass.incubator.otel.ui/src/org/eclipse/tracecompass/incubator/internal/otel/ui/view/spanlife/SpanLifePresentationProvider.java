@@ -119,20 +119,7 @@ public class SpanLifePresentationProvider extends TimeGraphPresentationProvider 
     @Override
     public int getStateTableIndex(@Nullable ITimeEvent event) {
         if (event instanceof SpanMarkerEvent) {
-            SpanMarkerEvent markerEvent = (SpanMarkerEvent) event;
-            String type = markerEvent.getType();
-            switch (type) {
-            case ERROR:
-                return 5;
-            case EVENT:
-                return 6;
-            case MESSAGE:
-                return 7;
-            case STACK:
-                return 8;
-            default:
-                return 9;
-            }
+            return 6;
         }
         if ((event instanceof TimeEvent) && ((TimeEvent) event).getValue() != Integer.MIN_VALUE) {
             if ((event.getEntry() instanceof TimeGraphEntry) && (((TimeGraphEntry) event.getEntry()).getEntryModel() instanceof SpanLifeEntryModel)) {

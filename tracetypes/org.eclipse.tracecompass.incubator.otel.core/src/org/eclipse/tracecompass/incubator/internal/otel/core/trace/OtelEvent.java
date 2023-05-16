@@ -14,7 +14,6 @@ package org.eclipse.tracecompass.incubator.internal.otel.core.trace;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.jdt.annotation.NonNull;
-import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.tracecompass.tmf.core.event.ITmfEventField;
 import org.eclipse.tracecompass.tmf.core.event.ITmfEventType;
 import org.eclipse.tracecompass.tmf.core.event.TmfEvent;
@@ -34,18 +33,12 @@ import io.opentelemetry.proto.trace.v1.Span;
  */
 public class OtelEvent extends TmfEvent {
 
-    private @Nullable ResourceSpans fResourceSpans;
-    private @Nullable ResourceMetrics fResourceMetrics;
-
-    private @NonNull ITmfTimestamp fEndTimestamp;
-
     /**
      * Default constructor. Only for use by extension points, should not be
      * called directly.
      */
     public OtelEvent() {
         super();
-        fEndTimestamp = TmfTimestamp.BIG_CRUNCH;
     }
 
     /**
@@ -56,57 +49,20 @@ public class OtelEvent extends TmfEvent {
      * @param rank
      *            the event rank (in the trace). You can use
      *            {@link ITmfContext#UNKNOWN_RANK} as default value
-     * @param startTimestamp
-     *            the timestamp of the start of the event
-     * @param endTimestamp
-     *            the timestamp of the end of the event
+     * @param timestamp
+     *            the timestamp of the event
      * @param type
      *            the event type
      * @param content
      *            the event content (payload)
-     * @param resourceSpans
-     *            the event {@link ResourceSpans}
-     * @param resourceMetrics
-     *            the event {@link ResourceMetrics}
      */
     protected OtelEvent(
             OtelTrace trace,
             long rank,
-            @NonNull ITmfTimestamp startTimestamp,
-            @NonNull ITmfTimestamp endTimestamp,
+            @NonNull ITmfTimestamp timestamp,
             ITmfEventType type,
-            ITmfEventField content,
-            ResourceSpans resourceSpans,
-            ResourceMetrics resourceMetrics) {
-        super(trace, rank, startTimestamp, type, content);
-        fEndTimestamp = endTimestamp;
-        fResourceSpans = resourceSpans;
-        fResourceMetrics = resourceMetrics;
-    }
-
-    /**
-     * Get the {@link ResourceSpans} associated to the event
-     *
-     * @return The {@link ResourceSpans} associated to the event
-     */
-    public ResourceSpans getResourceSpans() {
-        return fResourceSpans;
-    }
-
-    /**
-     * Get the {@link ResourceMetrics} associated to the event
-     *
-     * @return The {@link ResourceMetrics} associated to the event
-     */
-    public ResourceMetrics getResourceMetrics() {
-        return fResourceMetrics;
-    }
-
-    /**
-     * @return The timestamp corresponding to the end of the event
-     */
-    public @NonNull ITmfTimestamp getEndTimestamp() {
-        return fEndTimestamp;
+            ITmfEventField content) {
+        super(trace, rank, timestamp, type, content);
     }
 
     /**

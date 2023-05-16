@@ -23,6 +23,8 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.annotation.NonNull;
@@ -67,6 +69,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.TreeMultimap;
 
+import io.opentelemetry.proto.resource.v1.Resource;
+import io.opentelemetry.proto.trace.v1.Span.Event;
+
 /**
  * Data provider that will show the object lifespans.
  *
@@ -81,13 +86,15 @@ public class SpanLifeDataProvider extends AbstractTimeGraphDataProvider<@NonNull
 
     private static final int MARKER_SIZE = 500;
 
-    private static final String ERROR = "error"; //$NON-NLS-1$
-    private static final String EVENT = "event"; //$NON-NLS-1$
-    private static final String MESSAGE = "message"; //$NON-NLS-1$
-    private static final String STACK = "stack"; //$NON-NLS-1$
-    private static final String OTHER = "other"; //$NON-NLS-1$
-
     public static String SUFFIX = ".dataprovider"; //$NON-NLS-1$
+
+    private static Pattern SPAN_ID_REGEX = Pattern.compile("span_id=(?<spanId>.*?)(/|$)"); //$NON-NLS-1$
+    // private static Pattern SPAN_NAME_REGEX =
+    // Pattern.compile("name=(?<name>.*?)(/|$)"); //$NON-NLS-1$
+    private static Pattern ERROR_TAG_REGEX = Pattern.compile("has_error=(?<hasError>.*?)(/|$)"); //$NON-NLS-1$
+    private static Pattern PROCESS_NAME_REGEX = Pattern.compile("process_name=(?<processName>.*?)(/|$)"); //$NON-NLS-1$
+    // private static Pattern SERVICE_NAME_REGEX =
+    // Pattern.compile("service_name=(?<serviceName>.*?)(/|$)"); //$NON-NLS-1$
 
     /**
      * Constructor
@@ -125,35 +132,49 @@ public class SpanLifeDataProvider extends AbstractTimeGraphDataProvider<@NonNull
             return new TmfModelResponse<>(null, ITmfResponse.Status.COMPLETED, CommonStatusMessage.COMPLETED);
         }
 
+        int resourcesQuark = ITmfStateSystem.INVALID_ATTRIBUTE;
         int traceLogsQuark = ITmfStateSystem.INVALID_ATTRIBUTE;
         try {
             String traceId = ss.getFullAttributePathArray(quarks.iterator().next())[0];
+            resourcesQuark = ss.getQuarkRelative(ss.getQuarkAbsolute(traceId), IOpenTracingConstants.RESOURCES);
             traceLogsQuark = ss.getQuarkRelative(ss.getQuarkAbsolute(traceId), IOpenTracingConstants.LOGS);
         } catch (AttributeNotFoundException e) {
             return new TmfModelResponse<>(null, ITmfResponse.Status.CANCELLED, CommonStatusMessage.TASK_CANCELLED);
         }
 
+        int resourceQuark = getResourceQuark(ss, ss.getAttributeName(quarks.iterator().next()), ss.getSubAttributes(resourcesQuark, false));
         int spanLogQuark = getLogQuark(ss, ss.getAttributeName(quarks.iterator().next()), ss.getSubAttributes(traceLogsQuark, false));
 
         try {
             Map<@NonNull String, @NonNull String> retMap = new HashMap<>();
+            if (resourceQuark != ITmfStateSystem.INVALID_ATTRIBUTE) {
+                Long ssStartTime = startTime == Long.MIN_VALUE ? ss.getStartTime() : startTime;
+                Long ssEndTime = endTime == Long.MIN_VALUE ? ss.getCurrentEndTime() : endTime;
+                Long deviationAccepted = (ssEndTime - ssStartTime) / MARKER_SIZE;
+                for (ITmfStateInterval state : ss.query2D(Collections.singletonList(resourceQuark), Math.max(hoverTime - deviationAccepted, ssStartTime), Math.min(hoverTime + deviationAccepted, ssEndTime))) {
+                    Object object = state.getValue();
+                    if (object instanceof Resource) {
+                        Resource resource = (Resource) object;
+                        resource.getAttributesList()
+                                .stream()
+                                .sorted((attr1, attr2) -> attr1.getKey().compareToIgnoreCase(attr2.getKey()))
+                                .forEach(attr -> retMap.put(attr.getKey(), attr.getValue().getStringValue()));
+                    }
+                }
+            }
             if (spanLogQuark != ITmfStateSystem.INVALID_ATTRIBUTE) {
                 Long ssStartTime = startTime == Long.MIN_VALUE ? ss.getStartTime() : startTime;
                 Long ssEndTime = endTime == Long.MIN_VALUE ? ss.getCurrentEndTime() : endTime;
                 Long deviationAccepted = (ssEndTime - ssStartTime) / MARKER_SIZE;
                 for (ITmfStateInterval state : ss.query2D(Collections.singletonList(spanLogQuark), Math.max(hoverTime - deviationAccepted, ssStartTime), Math.min(hoverTime + deviationAccepted, ssEndTime))) {
                     Object object = state.getValue();
-                    if (object instanceof String) {
-                        String logs = (String) object;
+                    if (object instanceof Event) {
+                        Event log = (Event) object;
                         String timestamp = TmfTimestamp.fromNanos(state.getStartTime()).toString();
                         if (timestamp != null) {
                             retMap.put("log timestamp", timestamp); //$NON-NLS-1$
                         }
-                        String[] fields = logs.split("~"); //$NON-NLS-1$
-                        for (String field : fields) {
-                            retMap.put(field.substring(0, field.indexOf(':')), field.substring(field.indexOf(':') + 1));
-                        }
-                        return new TmfModelResponse<>(retMap, ITmfResponse.Status.COMPLETED, CommonStatusMessage.COMPLETED);
+                        retMap.put(log.getName(), log.toString());
                     }
                 }
             }
@@ -165,7 +186,7 @@ public class SpanLifeDataProvider extends AbstractTimeGraphDataProvider<@NonNull
 
     @Override
     public @NonNull String getId() {
-        return getAnalysisModule().getId() + SUFFIX ;
+        return getAnalysisModule().getId() + SUFFIX;
     }
 
     @Override
@@ -265,7 +286,7 @@ public class SpanLifeDataProvider extends AbstractTimeGraphDataProvider<@NonNull
                     for (ITmfStateInterval interval : ss.query2D(Collections.singletonList(logQuark), ss.getStartTime(), ss.getCurrentEndTime())) {
                         Object value = interval.getValue();
                         if (value != null) {
-                            logs.add(new LogEvent(interval.getStartTime(), getLogType(String.valueOf(value))));
+                            logs.add(new LogEvent(interval.getStartTime()));
                         }
                     }
                 } catch (IndexOutOfBoundsException | TimeRangeException | StateSystemDisposedException e) {
@@ -285,7 +306,7 @@ public class SpanLifeDataProvider extends AbstractTimeGraphDataProvider<@NonNull
             try {
                 for (ITmfStateInterval interval : ss.query2D(Collections.singletonList(logQuark), ss.getStartTime(), ss.getCurrentEndTime())) {
                     if (!interval.getStateValue().isNull()) {
-                        logs.add(new LogEvent(interval.getStartTime(), getLogType(String.valueOf(interval.getValue()))));
+                        logs.add(new LogEvent(interval.getStartTime()));
                     }
                 }
             } catch (IndexOutOfBoundsException | TimeRangeException | StateSystemDisposedException e) {
@@ -314,47 +335,37 @@ public class SpanLifeDataProvider extends AbstractTimeGraphDataProvider<@NonNull
         return ITmfStateSystem.INVALID_ATTRIBUTE;
     }
 
+    private static int getResourceQuark(ITmfStateSystem ss, String spanName, List<Integer> resourcesQuarks) {
+        for (int resourcesQuark : resourcesQuarks) {
+            if (ss.getAttributeName(resourcesQuark).equals(getSpanId(spanName))) {
+                return resourcesQuark;
+            }
+        }
+        return ITmfStateSystem.INVALID_ATTRIBUTE;
+    }
+
     private static String getSpanName(String attributeName) {
-        int slashPos = attributeName.lastIndexOf('/');
-        slashPos = attributeName.lastIndexOf('/', slashPos);
-        slashPos = attributeName.lastIndexOf('/', slashPos);
-        return attributeName.substring(0, Math.max(0, slashPos));
+        return attributeName;
+        // return getMatch(SPAN_NAME_REGEX, attributeName, "name");
+        // //$NON-NLS-1$
     }
 
     private static String getSpanId(String attributeName) {
-        String[] attributeInfo = attributeName.split("/"); //$NON-NLS-1$
-        return attributeInfo[attributeInfo.length - 3];
+        return getMatch(SPAN_ID_REGEX, attributeName, "spanId"); //$NON-NLS-1$
     }
 
     private static Boolean getErrorTag(String attributeName) {
-        String[] attributeInfo = attributeName.split("/"); //$NON-NLS-1$
-        return attributeInfo[attributeInfo.length - 2].equals("true"); //$NON-NLS-1$
+        return getMatch(ERROR_TAG_REGEX, attributeName, "hasError").equals("true"); //$NON-NLS-1$ //$NON-NLS-2$
     }
 
     private static String getProcessName(String attributeName) {
-        return attributeName.substring(attributeName.lastIndexOf('/') + 1);
+        return getMatch(PROCESS_NAME_REGEX, attributeName, "processName"); //$NON-NLS-1$
     }
 
-    private static String getLogType(String logs) {
-        String[] logsArray = logs.split("~"); //$NON-NLS-1$
-        StringBuilder builder = new StringBuilder();
-        for (int i = 0; i < logsArray.length; i++) {
-            builder.append(logsArray[i].substring(0, logsArray[i].indexOf(':')));
-        }
-        String types = builder.toString();
-
-        if (types.contains(ERROR)) {
-            return ERROR;
-        } else if (types.contains(EVENT)) {
-            return EVENT;
-        } else if (types.contains(MESSAGE)) {
-            return MESSAGE;
-        } else if (types.contains(STACK)) {
-            return STACK;
-        } else {
-            return OTHER;
-        }
-    }
+    // private static String getServiceName(String attributeName) {
+    // return getMatch(SERVICE_NAME_REGEX, attributeName, "serviceName");
+    // //$NON-NLS-1$
+    // }
 
     @Override
     public TmfModelResponse<AnnotationCategoriesModel> fetchAnnotationCategories(Map<String, Object> fetchParameters, @Nullable IProgressMonitor monitor) {
@@ -377,7 +388,8 @@ public class SpanLifeDataProvider extends AbstractTimeGraphDataProvider<@NonNull
             return new TmfModelResponse<>(null, ITmfResponse.Status.FAILED, CommonStatusMessage.INCORRECT_QUERY_PARAMETERS);
         }
 
-        @Nullable Set<@NonNull String> selectedCategories = DataProviderParameterUtils.extractSelectedCategories(fetchParameters);
+        @Nullable
+        Set<@NonNull String> selectedCategories = DataProviderParameterUtils.extractSelectedCategories(fetchParameters);
         if ((selectedCategories != null && !selectedCategories.contains(IOpenTracingConstants.LOGS))) {
             return new TmfModelResponse<>(null, ITmfResponse.Status.COMPLETED, CommonStatusMessage.COMPLETED);
         }
@@ -441,6 +453,15 @@ public class SpanLifeDataProvider extends AbstractTimeGraphDataProvider<@NonNull
             Activator.getInstance().logError(e.getMessage());
         }
         return new TmfModelResponse<>(new AnnotationModel(Collections.singletonMap(IOpenTracingConstants.LOGS, annotations)), Status.COMPLETED, "");
+    }
+
+    @SuppressWarnings("null")
+    private static String getMatch(Pattern pattern, String input, String group) {
+        Matcher matcher = pattern.matcher(input);
+        if (matcher.find()) {
+            return matcher.group(group);
+        }
+        return ""; //$NON-NLS-1$
     }
 
 }

@@ -28,19 +28,15 @@ public class SpanLifeEntryModel extends TimeGraphEntryModel {
      */
     public static class LogEvent {
         private final long fTime;
-        private final String fType;
 
         /**
          * Constructor
          *
          * @param time
          *            timestamp of the log
-         * @param type
-         *            type of the log
          */
-        public LogEvent(long time, String type) {
+        public LogEvent(long time) {
             fTime = time;
-            fType = type;
         }
 
         /**
@@ -50,15 +46,6 @@ public class SpanLifeEntryModel extends TimeGraphEntryModel {
          */
         public long getTime() {
             return fTime;
-        }
-
-        /**
-         * Type of event
-         *
-         * @return event
-         */
-        public String getType() {
-            return fType;
         }
     }
 
@@ -92,7 +79,7 @@ public class SpanLifeEntryModel extends TimeGraphEntryModel {
         super(id, parentId, name, startTime, endTime);
         fLogs = logs;
         fErrorTag = errorTag;
-        fProcessName= processName;
+        fProcessName = processName;
     }
 
     /**

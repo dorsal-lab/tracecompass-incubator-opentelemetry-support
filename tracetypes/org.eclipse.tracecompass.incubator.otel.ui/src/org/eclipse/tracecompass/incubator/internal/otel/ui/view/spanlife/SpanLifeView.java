@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018 Ericsson
+ * Copyright (c) 2023 Polytechnique Montreal
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License 2.0 which
@@ -13,6 +13,7 @@ package org.eclipse.tracecompass.incubator.internal.otel.ui.view.spanlife;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.StreamSupport;
@@ -27,6 +28,7 @@ import org.eclipse.tracecompass.incubator.internal.otel.core.analysis.spanlife.S
 import org.eclipse.tracecompass.incubator.internal.otel.core.analysis.spanlife.SpanLifeEntryModel;
 import org.eclipse.tracecompass.incubator.internal.otel.core.analysis.spanlife.SpanLifeEntryModel.LogEvent;
 import org.eclipse.tracecompass.incubator.internal.otel.ui.Activator;
+import org.eclipse.tracecompass.incubator.internal.otel.ui.Messages;
 import org.eclipse.tracecompass.tmf.core.model.tree.ITmfTreeDataModel;
 import org.eclipse.tracecompass.tmf.core.trace.ITmfTrace;
 import org.eclipse.tracecompass.tmf.core.trace.experiment.TmfExperiment;
@@ -39,7 +41,7 @@ import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.TimeGraphEntry;
 /**
  * Simple gantt chart to see the life of the spans
  *
- * @author Katherine Nadeau
+ * @author Eya-Tom Augustin SANGAM
  */
 public class SpanLifeView extends BaseDataProviderTimeGraphView {
 
@@ -67,6 +69,10 @@ public class SpanLifeView extends BaseDataProviderTimeGraphView {
         }
     }
 
+    private static final String[] FILTER_COLUMN_NAMES = new String[] {
+            Messages.SpanLifeView_stateTypeName
+    };
+
     /**
      * Constructor
      */
@@ -87,6 +93,30 @@ public class SpanLifeView extends BaseDataProviderTimeGraphView {
      */
     public SpanLifeView(String id, TimeGraphPresentationProvider pres, String dpID) {
         super(id, pres, dpID);
+        setFilterColumns(FILTER_COLUMN_NAMES);
+        setFilterLabelProvider(new SpansFilterLabelProvider());
+        setEntryComparator(new SpansEntryComparator());
+    }
+
+    private static class SpansEntryComparator implements Comparator<ITimeGraphEntry> {
+        @Override
+        public int compare(ITimeGraphEntry o1, ITimeGraphEntry o2) {
+            if (o1 instanceof TraceEntry && o2 instanceof TraceEntry) {
+                /* sort trace entries alphabetically */
+                return o1.getName().compareTo(o2.getName());
+            }
+            return 0;
+        }
+    }
+
+    private static class SpansFilterLabelProvider extends TreeLabelProvider {
+        @Override
+        public String getColumnText(Object element, int columnIndex) {
+            if (columnIndex == 0 && element instanceof TimeGraphEntry) {
+                return ((TimeGraphEntry) element).getName();
+            }
+            return ""; //$NON-NLS-1$
+        }
     }
 
     @Override
@@ -110,7 +140,7 @@ public class SpanLifeView extends BaseDataProviderTimeGraphView {
             if (entryModel instanceof SpanLifeEntryModel) {
                 SpanLifeEntryModel model = (SpanLifeEntryModel) entryModel;
                 for (LogEvent log : model.getLogs()) {
-                    markers.add(new SpanMarkerEvent(element, log.getTime(), MARKER_COLOR, log.getType()));
+                    markers.add(new SpanMarkerEvent(element, log.getTime(), MARKER_COLOR));
                 }
             }
         }

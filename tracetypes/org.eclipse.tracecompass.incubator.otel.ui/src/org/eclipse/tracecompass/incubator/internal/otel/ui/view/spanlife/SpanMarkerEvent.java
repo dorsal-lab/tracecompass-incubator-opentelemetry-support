@@ -24,24 +24,13 @@ import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.MarkerEvent;
  */
 class SpanMarkerEvent extends MarkerEvent {
 
-    private final String fType;
-
-    public SpanMarkerEvent(ITimeGraphEntry entry, long time, RGBA color, String type) {
+    public SpanMarkerEvent(ITimeGraphEntry entry, long time, RGBA color) {
         super(entry, time, 0, "logs", color, null, true); //$NON-NLS-1$
-        fType = type;
-    }
-
-    public String getType() {
-        return fType;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), fType);
+        return Objects.hash(super.hashCode());
     }
 
-    @Override
-    public boolean equals(Object obj) {
-        return super.equals(obj) && Objects.equals(fType, ((SpanMarkerEvent) obj).fType);
-    }
 }

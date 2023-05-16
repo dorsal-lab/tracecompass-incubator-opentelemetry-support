@@ -14,12 +14,10 @@ package org.eclipse.tracecompass.incubator.internal.otel.core.analysis.spanlife;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.BiConsumer;
 
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.tracecompass.incubator.internal.otel.core.trace.Constants;
-import org.eclipse.tracecompass.incubator.internal.otel.core.trace.OtelEvent;
 import org.eclipse.tracecompass.statesystem.core.ITmfStateSystemBuilder;
 import org.eclipse.tracecompass.tmf.core.event.ITmfEvent;
 import org.eclipse.tracecompass.tmf.core.statesystem.AbstractTmfStateProvider;
@@ -30,8 +28,6 @@ import com.google.protobuf.ByteString;
 
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.resource.v1.Resource;
-import io.opentelemetry.proto.trace.v1.InstrumentationLibrarySpans;
-import io.opentelemetry.proto.trace.v1.ResourceSpans;
 import io.opentelemetry.proto.trace.v1.Span;
 import io.opentelemetry.proto.trace.v1.Span.Event;
 import io.opentelemetry.proto.trace.v1.Status;
@@ -69,7 +65,7 @@ public class SpanLifeStateProvider extends AbstractTmfStateProvider {
         super(trace, SpanLifeAnalysis.ID);
         fSpanMap = new HashMap<>();
         fHandlers = new HashMap<>();
-        fHandlers.put(Constants.RESOURCE_SPANS_FIELD_FULL_NAME, this::handleEventSpan);
+        fHandlers.put(Constants.SpanEvents.START_SPAN_EVENT_TYPE_ID, this::handleStartSpanEvent);
     }
 
     @Override
@@ -94,100 +90,101 @@ public class SpanLifeStateProvider extends AbstractTmfStateProvider {
         }
     }
 
-    private void handleEventSpan(ITmfEvent event, ITmfStateSystemBuilder ss) {
-        OtelEvent otelEvent = (OtelEvent) event;
-
-        ResourceSpans resourceSpans = otelEvent.getResourceSpans();
-        if (resourceSpans == null) {
-            return;
-        }
-
-        // Get the process name of the span creator
-        Resource resource = resourceSpans.getResource();
+    private void handleStartSpanEvent(ITmfEvent event, ITmfStateSystemBuilder ss) {
+        // Get the process name and service name of the span creator
+        Resource resource = (Resource) event.getContent().getField(Constants.SpanEvents.Fields.RESOURCE).getValue();
+        String serviceName = ""; //$NON-NLS-1$
         String processName = ""; //$NON-NLS-1$
-        @SuppressWarnings("null")
-        Optional<KeyValue> processNameSearch = resource.getAttributesList().stream()
-                .filter(attr -> attr.getKey().equals(ResourceAttributes.PROCESS_RUNTIME_NAME.getKey()))
-                .findFirst();
-        if (processNameSearch.isPresent()) {
-            processName = processNameSearch.get().getValue().getStringValue();
-        }
 
-        for (InstrumentationLibrarySpans ilSpans : resourceSpans.getInstrumentationLibrarySpansList()) {
-            // InstrumentationLibrary instrumentationLibrary =
-            // spans.getInstrumentationLibrary();
-            for (Span span : ilSpans.getSpansList()) {
-                long timestamp = span.getStartTimeUnixNano();
-
-                @SuppressWarnings("null")
-                String traceId = byteStringToHex(span.getTraceId());
-                int traceQuark = ss.getQuarkAbsoluteAndAdd(traceId);
-
-                int openTracingSpansQuark = ss.getQuarkRelativeAndAdd(traceQuark, OTEL_SPANS_ATTRIBUTE);
-
-                // Check if the operation within the span was successful or not
-                boolean errorTag = false;
-                if (span.hasStatus()) {
-                    Status status = span.getStatus();
-                    // TODO: Handle deprecation
-                    // Status.DeprecatedStatusCode deprecratedStatus =
-                    // status.getDeprecatedCode();
-                    // if (deprecratedStatus != null) {
-                    // errorTag = errorTag ||
-                    // !deprecratedStatus.equals(Status.DeprecatedStatusCode.DEPRECATED_STATUS_CODE_OK);
-                    // }
-                    Status.StatusCode statusCode = status.getCode();
-                    if (statusCode != null) {
-                        errorTag = errorTag || statusCode.equals(Status.StatusCode.STATUS_CODE_ERROR);
-                    }
-                }
-
-                int spanQuark;
-                String name = span.getName();
-                @SuppressWarnings("null")
-                String spanId = byteStringToHex(span.getSpanId());
-
-                ByteString parentSpanIdBs = span.getParentSpanId();
-                if (parentSpanIdBs == null) {
-                    spanQuark = ss.getQuarkRelativeAndAdd(openTracingSpansQuark, name + '/' + spanId + '/' + errorTag + '/' + processName);
-                } else {
-                    String parentSpanId = byteStringToHex(parentSpanIdBs);
-                    Integer parentQuark = fSpanMap.get(parentSpanId);
-                    if (parentQuark == null) {
-                        // We don't have the parent span, just start this span
-                        // at root
-                        parentQuark = openTracingSpansQuark;
-                    }
-                    spanQuark = ss.getQuarkRelativeAndAdd(parentQuark, name + '/' + spanId + '/' + errorTag + '/' + processName);
-                }
-
-                ss.modifyAttribute(timestamp, name, spanQuark);
-
-                // Map<Long, Map<String, String>> logs =
-                // eevent.getContent().getFieldValue(Map.class,
-                // IOpenTracingConstants.LOGS);
-                if (span.getEventsCount() > 0) {
-                    // We put all the logs in the state system under the LOGS
-                    // attribute
-                    Integer logsQuark = ss.getQuarkRelativeAndAdd(traceQuark, IOpenTracingConstants.LOGS);
-                    for (Event spanEvent : span.getEventsList()) {
-                        // One attribute for each span where each state value is
-                        // the
-                        // logs at the timestamp corresponding to the start time
-                        // of the
-                        // state
-                        Integer logQuark = ss.getQuarkRelativeAndAdd(logsQuark, spanId);
-                        Long logTimestamp = spanEvent.getTimeUnixNano();
-                        ss.modifyAttribute(logTimestamp, spanEvent.toString(), logQuark); // $NON-NLS-1$
-                        ss.modifyAttribute(logTimestamp + 1, (Object) null, logQuark);
-                    }
-                }
-
-                long endTimestamp = span.getEndTimeUnixNano();
-                ss.modifyAttribute(endTimestamp, (Object) null, spanQuark);
-                fSpanMap.put(spanId, spanQuark);
+        for (KeyValue attr : resource.getAttributesList()) {
+            String key = attr.getKey();
+            if (key.equals(ResourceAttributes.SERVICE_NAME.getKey())) {
+                serviceName = attr.getValue().getStringValue();
+            } else if (key.equals(ResourceAttributes.PROCESS_RUNTIME_NAME.getKey())) {
+                processName = attr.getValue().getStringValue();
             }
         }
+
+        // Get the timestamp. We use the event timestamp instead of the span
+        // timestamp.
+        // Because we will not change span data even after a trace
+        // synchronization
+        Span span = (Span) event.getContent().getField(Constants.SpanEvents.Fields.SPAN).getValue();
+        long startTimestamp = event.getTimestamp().toNanos();
+
+        // Check if the operation within the span was successful or not
+        boolean errorTag = false;
+        if (span.hasStatus()) {
+            Status.StatusCode statusCode = span.getStatus().getCode();
+            if (statusCode != null) {
+                errorTag = errorTag || statusCode.equals(Status.StatusCode.STATUS_CODE_ERROR);
+            }
+        }
+
+        // Get the trace id, span id and name
+        @SuppressWarnings("null")
+        String traceId = byteStringToHex(span.getTraceId());
+        @SuppressWarnings("null")
+        String spanId = byteStringToHex(span.getSpanId());
+        String name = span.getName();
+
+        // Create the trace and span identifier. We add lot of details to make
+        // filtering
+        // easier
+        String traceIdentifier = getTraceIdentifier(traceId);
+        @SuppressWarnings("null")
+        String spanIdentifier = getSpanIdentifier(name, spanId, serviceName, processName, errorTag);
+
+        // Update the State System
+        int traceQuark = ss.getQuarkAbsoluteAndAdd(traceIdentifier);
+        int openTracingSpansQuark = ss.getQuarkRelativeAndAdd(traceQuark, OTEL_SPANS_ATTRIBUTE);
+        int spanQuark;
+
+        ByteString parentSpanIdBs = span.getParentSpanId();
+        if (parentSpanIdBs == null) {
+            spanQuark = ss.getQuarkRelativeAndAdd(openTracingSpansQuark, spanIdentifier);
+        } else {
+            String parentSpanId = byteStringToHex(parentSpanIdBs);
+            Integer parentQuark = fSpanMap.get(parentSpanId);
+            if (parentQuark == null) {
+                // We don't have the parent span, just start this span at root
+                parentQuark = openTracingSpansQuark;
+            }
+            spanQuark = ss.getQuarkRelativeAndAdd(parentQuark, spanIdentifier);
+        }
+
+        ss.modifyAttribute(startTimestamp, name, spanQuark);
+        // int resourceQuark = ss.getQuarkRelativeAndAdd(spanQuark, "resource");
+        // //$NON-NLS-1$
+        // ss.modifyAttribute(startTimestamp, resource, resourceQuark);
+
+        if (span.getEventsCount() > 0) {
+            // We put all the logs in the state system under the LOGS attribute
+            Integer logsQuark = ss.getQuarkRelativeAndAdd(traceQuark, IOpenTracingConstants.LOGS);
+            for (Event spanEvent : span.getEventsList()) {
+                // One attribute for each span where each state value is the
+                // logs at the timestamp corresponding to the start time of the
+                // state
+                Integer logQuark = ss.getQuarkRelativeAndAdd(logsQuark, spanId);
+                Long logTimestamp = spanEvent.getTimeUnixNano();
+                ss.modifyAttribute(logTimestamp, spanEvent, logQuark);
+                ss.modifyAttribute(logTimestamp + 1, (Object) null, logQuark);
+            }
+        }
+
+        long endTimestamp = span.getEndTimeUnixNano();
+        ss.modifyAttribute(endTimestamp, (Object) null, spanQuark);
+
+        if (resource.getAttributesCount() > 0) {
+            // We put all the resources in the state system under the RESOURCES
+            // attribute
+            Integer resourcesQuark = ss.getQuarkRelativeAndAdd(traceQuark, IOpenTracingConstants.RESOURCES);
+            Integer resourceQuark = ss.getQuarkRelativeAndAdd(resourcesQuark, spanId);
+            ss.modifyAttribute(startTimestamp, resource, resourceQuark);
+            ss.modifyAttribute(endTimestamp, (Object) null, resourceQuark);
+        }
+
+        fSpanMap.put(spanId, spanQuark);
     }
 
     private static String byteStringToHex(ByteString byteString) {
@@ -197,6 +194,20 @@ public class SpanLifeStateProvider extends AbstractTmfStateProvider {
             sb.append(String.format("%02x", b)); //$NON-NLS-1$
         }
         return sb.toString();
+    }
+
+    private static String getSpanIdentifier(String name, String spanId, String serviceName, String processName, boolean hasError) {
+        return String.format(
+                "name=%s/span_id=%s/service_name=%s/process_name=%s/has_error=%s", //$NON-NLS-1$
+                name,
+                spanId,
+                serviceName,
+                processName,
+                String.valueOf(hasError));
+    }
+
+    private static String getTraceIdentifier(String traceId) {
+        return String.format("trace=%s", traceId); //$NON-NLS-1$
     }
 
 }
