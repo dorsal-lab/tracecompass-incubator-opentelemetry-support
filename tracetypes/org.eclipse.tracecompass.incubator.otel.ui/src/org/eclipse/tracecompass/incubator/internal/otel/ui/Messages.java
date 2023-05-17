@@ -17,7 +17,7 @@ import org.eclipse.osgi.util.NLS;
 @SuppressWarnings("javadoc")
 public class Messages extends NLS {
 
-    private static final String BUNDLE_NAME = "org.eclipse.tracecompass.incubator.internal.otel.ui"; //$NON-NLS-1$
+    private static final String BUNDLE_NAME = "org.eclipse.tracecompass.incubator.internal.otel.ui.messages"; //$NON-NLS-1$
 
     public static @Nullable String SpanLifeView_stateTypeName;
 
