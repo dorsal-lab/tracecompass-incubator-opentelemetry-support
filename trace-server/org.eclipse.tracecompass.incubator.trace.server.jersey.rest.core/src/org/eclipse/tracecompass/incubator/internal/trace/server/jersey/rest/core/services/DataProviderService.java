@@ -30,6 +30,8 @@ import static org.eclipse.tracecompass.incubator.internal.trace.server.jersey.re
 import static org.eclipse.tracecompass.incubator.internal.trace.server.jersey.rest.core.services.EndpointConstants.EXPRESSIONS;
 import static org.eclipse.tracecompass.incubator.internal.trace.server.jersey.rest.core.services.EndpointConstants.EXPRESSIONS_EX;
 import static org.eclipse.tracecompass.incubator.internal.trace.server.jersey.rest.core.services.EndpointConstants.EXP_UUID;
+import static org.eclipse.tracecompass.incubator.internal.trace.server.jersey.rest.core.services.EndpointConstants.FILTER_QUERY_PARAMETERS;
+import static org.eclipse.tracecompass.incubator.internal.trace.server.jersey.rest.core.services.EndpointConstants.FILTER_QUERY_PARAMETERS_EX;
 import static org.eclipse.tracecompass.incubator.internal.trace.server.jersey.rest.core.services.EndpointConstants.INDEX;
 import static org.eclipse.tracecompass.incubator.internal.trace.server.jersey.rest.core.services.EndpointConstants.INDEX_EX;
 import static org.eclipse.tracecompass.incubator.internal.trace.server.jersey.rest.core.services.EndpointConstants.INVALID_PARAMETERS;
@@ -389,7 +391,7 @@ public class DataProviderService {
                 return Response.status(Status.NOT_FOUND).entity(NO_SUCH_TRACE).build();
             }
 
-            ITmfTreeXYDataProvider<@NonNull ITmfTreeDataModel> provider = manager.getDataProvider(experiment,
+            ITmfTreeXYDataProvider<@NonNull ITmfTreeDataModel> provider = manager.getOrCreateDataProvider(experiment,
                     outputId, ITmfTreeXYDataProvider.class);
 
             if (provider == null) {
@@ -501,8 +503,8 @@ public class DataProviderService {
     public Response getStates(
             @Parameter(description = EXP_UUID) @PathParam("expUUID") UUID expUUID,
             @Parameter(description = OUTPUT_ID) @PathParam("outputId") String outputId,
-            @RequestBody(description = "Query parameters to fetch the timegraph states. " + TIMERANGE + " " + ITEMS, content = {
-                    @Content(examples = @ExampleObject("{\"parameters\":{" + TIMERANGE_EX + "," + ITEMS_EX +
+            @RequestBody(description = "Query parameters to fetch the timegraph states. " + TIMERANGE + " " + ITEMS + " " + FILTER_QUERY_PARAMETERS, content = {
+                    @Content(examples = @ExampleObject("{\"parameters\":{" + TIMERANGE_EX + "," + ITEMS_EX + "," + FILTER_QUERY_PARAMETERS_EX +
                             "}}"), schema = @Schema(implementation = RequestedQueryParameters.class))
             }, required = true) QueryParameters queryParameters) {
 
@@ -526,6 +528,11 @@ public class DataProviderService {
 
             Map<String, Object> params = queryParameters.getParameters();
             String errorMessage = QueryParametersUtil.validateRequestedQueryParameters(params);
+            if (errorMessage != null) {
+                return Response.status(Status.BAD_REQUEST).entity(errorMessage).build();
+            }
+
+            errorMessage = QueryParametersUtil.validateFilterQueryParameters(params);
             if (errorMessage != null) {
                 return Response.status(Status.BAD_REQUEST).entity(errorMessage).build();
             }
@@ -658,7 +665,7 @@ public class DataProviderService {
                 return Response.status(Status.NOT_FOUND).entity(NO_SUCH_TRACE).build();
             }
 
-            ITmfTreeDataProvider<? extends @NonNull ITmfTreeDataModel> provider = manager.getDataProvider(experiment,
+            ITmfTreeDataProvider<? extends @NonNull ITmfTreeDataModel> provider = manager.getOrCreateDataProvider(experiment,
                     outputId, ITmfTreeDataProvider.class);
 
             if (provider == null) {
@@ -742,7 +749,7 @@ public class DataProviderService {
                 return Response.status(Status.NOT_FOUND).entity(NO_SUCH_TRACE).build();
             }
 
-            ITmfTreeDataProvider<? extends @NonNull ITmfTreeDataModel> provider = manager.getDataProvider(experiment,
+            ITmfTreeDataProvider<? extends @NonNull ITmfTreeDataModel> provider = manager.getOrCreateDataProvider(experiment,
                     outputId, ITmfTreeDataProvider.class);
 
             if (provider == null) {
@@ -854,7 +861,7 @@ public class DataProviderService {
     }
 
     private ITimeGraphDataProvider<@NonNull ITimeGraphEntryModel> getTimeGraphProvider(@NonNull ITmfTrace trace, String outputId) {
-        ITimeGraphDataProvider<@NonNull ITimeGraphEntryModel> provider = manager.getDataProvider(trace,
+        ITimeGraphDataProvider<@NonNull ITimeGraphEntryModel> provider = manager.getOrCreateDataProvider(trace,
                 outputId, ITimeGraphDataProvider.class);
 
         if (provider == null && outputId != null) {
@@ -957,7 +964,7 @@ public class DataProviderService {
                 return Response.status(Status.NOT_FOUND).entity(NO_SUCH_TRACE).build();
             }
 
-            ITmfVirtualTableDataProvider<? extends IVirtualTableLine, ? extends ITmfTreeDataModel> provider = manager.getDataProvider(experiment, outputId, ITmfVirtualTableDataProvider.class);
+            ITmfVirtualTableDataProvider<? extends IVirtualTableLine, ? extends ITmfTreeDataModel> provider = manager.getOrCreateDataProvider(experiment, outputId, ITmfVirtualTableDataProvider.class);
             if (provider == null) {
                 return Response.status(Status.METHOD_NOT_ALLOWED).entity(NO_PROVIDER).build();
             }
@@ -1054,7 +1061,7 @@ public class DataProviderService {
                 return Response.status(Status.NOT_FOUND).entity(NO_SUCH_TRACE).build();
             }
 
-            ITmfTreeDataProvider<? extends @NonNull ITmfTreeDataModel> provider = manager.getDataProvider(experiment,
+            ITmfTreeDataProvider<? extends @NonNull ITmfTreeDataModel> provider = manager.getOrCreateDataProvider(experiment,
                     outputId, ITmfTreeDataProvider.class);
 
             if (provider == null) {
@@ -1121,7 +1128,7 @@ public class DataProviderService {
                 return Response.status(Status.NOT_FOUND).entity(NO_SUCH_TRACE).build();
             }
 
-            ITmfTreeDataProvider<? extends @NonNull ITmfTreeDataModel> provider = manager.getDataProvider(experiment,
+            ITmfTreeDataProvider<? extends @NonNull ITmfTreeDataModel> provider = manager.getOrCreateDataProvider(experiment,
                     outputId, ITmfTreeDataProvider.class);
 
             if (provider == null) {

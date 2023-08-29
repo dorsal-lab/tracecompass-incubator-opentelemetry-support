@@ -47,6 +47,13 @@ public interface IRos2EventLayout {
     }
 
     /**
+     * @return the provider name (ending with a colon)
+     */
+    public default String getProviderName() {
+        return PROVIDER_NAME;
+    }
+
+    /**
      * Get all event names defined here
      *
      * @return the event names
@@ -209,6 +216,18 @@ public interface IRos2EventLayout {
      */
     String eventRclcppExecutorExecute();
 
+    // Message causal links
+
+    /**
+     * <code>message_link_periodic_async</code>
+     */
+    String eventMessageLinkPeriodicAsync();
+
+    /**
+     * <code>message_link_partial_sync</code>
+     */
+    String eventMessageLinkPartialSync();
+
     // DDS
 
     /**
@@ -273,6 +292,10 @@ public interface IRos2EventLayout {
     String fieldTimeout();
     String fieldHandle();
 
+    // Message causal links
+    String fieldSubs();
+    String fieldPubs();
+
     // DDS
     String fieldGidPrefix();
     String fieldGidEntity();
@@ -286,4 +309,5 @@ public interface IRos2EventLayout {
     String contextVpid();
     String contextVtid();
     String contextProcname();
+    String contextPerfThreadTaskClock();
 }

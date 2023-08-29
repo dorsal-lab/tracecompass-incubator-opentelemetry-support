@@ -44,13 +44,13 @@ import org.eclipse.tracecompass.tmf.core.TmfStrings;
 import org.eclipse.tracecompass.tmf.core.dataprovider.DataProviderManager;
 import org.eclipse.tracecompass.tmf.core.dataprovider.DataProviderParameterUtils;
 import org.eclipse.tracecompass.tmf.core.event.lookup.TmfCallsite;
+import org.eclipse.tracecompass.tmf.core.model.CoreFilterProperty;
 import org.eclipse.tracecompass.tmf.core.model.IOutputElement;
 import org.eclipse.tracecompass.tmf.core.model.annotations.Annotation;
 import org.eclipse.tracecompass.tmf.core.model.annotations.AnnotationCategoriesModel;
 import org.eclipse.tracecompass.tmf.core.model.annotations.AnnotationModel;
-import org.eclipse.tracecompass.tmf.core.model.annotations.IOutputAnnotationProvider;
 import org.eclipse.tracecompass.tmf.core.model.annotations.IAnnotation.AnnotationType;
-import org.eclipse.tracecompass.tmf.core.model.timegraph.IFilterProperty;
+import org.eclipse.tracecompass.tmf.core.model.annotations.IOutputAnnotationProvider;
 import org.eclipse.tracecompass.tmf.core.model.timegraph.ITimeGraphArrow;
 import org.eclipse.tracecompass.tmf.core.model.timegraph.ITimeGraphDataProvider;
 import org.eclipse.tracecompass.tmf.core.model.timegraph.ITimeGraphRowModel;
@@ -173,7 +173,7 @@ public class BaseDataProviderTimeGraphMultiViewer extends AbstractTimeGraphMulti
     @Override
     protected void buildEntryList(@NonNull ITmfTrace trace, @NonNull ITmfTrace parentTrace, @NonNull IProgressMonitor monitor) {
         ITimeGraphDataProvider<@NonNull TimeGraphEntryModel> dataProvider = DataProviderManager
-                .getInstance().getDataProvider(trace, getProviderId(), ITimeGraphDataProvider.class);
+                .getInstance().getOrCreateDataProvider(trace, getProviderId(), ITimeGraphDataProvider.class);
         if (dataProvider == null) {
             return;
         }
@@ -489,7 +489,7 @@ public class BaseDataProviderTimeGraphMultiViewer extends AbstractTimeGraphMulti
                     // fill in the gap.
                     TimeEvent timeEvent = new TimeEvent(entry, prevEnd, event.getTime() - prevEnd);
                     if (getTimeEventFilterDialog() != null && getTimeEventFilterDialog().isFilterActive()) {
-                        timeEvent.setProperty(IFilterProperty.DIMMED, true);
+                        timeEvent.setProperty(CoreFilterProperty.DIMMED, true);
                     }
                     events.add(timeEvent);
                 }

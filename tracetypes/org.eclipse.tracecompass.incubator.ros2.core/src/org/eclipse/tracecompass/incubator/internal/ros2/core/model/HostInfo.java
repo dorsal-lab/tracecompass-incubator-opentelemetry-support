@@ -11,6 +11,8 @@
 
 package org.eclipse.tracecompass.incubator.internal.ros2.core.model;
 
+import java.util.Comparator;
+
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.tracecompass.datastore.core.serialization.ISafeByteBufferReader;
 import org.eclipse.tracecompass.datastore.core.serialization.ISafeByteBufferWriter;
@@ -24,7 +26,13 @@ import com.google.common.base.Objects;
  *
  * @author Christophe Bedard
  */
-public class HostInfo {
+public class HostInfo implements Comparable<HostInfo> {
+
+    /**
+     * Use hostname for comparison, since that probably makes more sense to the
+     * user.
+     */
+    private static Comparator<HostInfo> COMPARATOR = Comparator.comparing(HostInfo::getHostname);
 
     private final @NonNull String fHostId;
     private final @NonNull String fHostname;
@@ -63,6 +71,11 @@ public class HostInfo {
     }
 
     @Override
+    public int compareTo(HostInfo o) {
+        return COMPARATOR.compare(this, o);
+    }
+
+    @Override
     public int hashCode() {
         return Objects.hashCode(fHostId);
     }
@@ -79,6 +92,7 @@ public class HostInfo {
             return false;
         }
         HostInfo o = (HostInfo) obj;
+        // Use host ID for equality
         return o.fHostId.equals(fHostId);
     }
 
@@ -93,9 +107,16 @@ public class HostInfo {
      * @param buffer
      *            the buffer
      */
-    public void serialize(@NonNull ISafeByteBufferWriter buffer) {
+    public void serializeValue(@NonNull ISafeByteBufferWriter buffer) {
         buffer.putString(fHostId);
         buffer.putString(fHostname);
+    }
+
+    /**
+     * @return the serialized size
+     */
+    public int getSerializedValueSize() {
+        return fSerializedValueSize;
     }
 
     /**
@@ -107,12 +128,5 @@ public class HostInfo {
         String hostId = buffer.getString();
         String hostname = buffer.getString();
         return new HostInfo(hostId, hostname);
-    }
-
-    /**
-     * @return the serialized size
-     */
-    public int getSerializedValueSize() {
-        return fSerializedValueSize;
     }
 }

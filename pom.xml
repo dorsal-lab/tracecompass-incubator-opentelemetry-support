@@ -21,7 +21,7 @@
 
   <groupId>org.eclipse.tracecompass.incubator</groupId>
   <artifactId>org.eclipse.tracecompass.incubator</artifactId>
-  <version>0.5.0-SNAPSHOT</version>
+  <version>0.6.0-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Trace Compass Incubator Parent</name>
 
@@ -54,17 +54,17 @@
     <tycho-extras-version>2.7.3</tycho-extras-version>
     <tycho-use-project-settings>true</tycho-use-project-settings>
     <tycho.scmUrl>scm:git:git://git.eclipse.org/gitroot/tracecompass.incubator/org.eclipse.tracecompass.incubator.git</tycho.scmUrl>
-    <cbi-plugins.version>1.3.1</cbi-plugins.version>
+    <cbi-plugins.version>1.4.2</cbi-plugins.version>
     <target-platform>tracecompass-incubator-master</target-platform>
     <help-docs-eclipserun-repo>http://download.eclipse.org/eclipse/updates/4.20</help-docs-eclipserun-repo>
 
-    <rcptt-version>2.2.0</rcptt-version>
+    <rcptt-version>2.5.4</rcptt-version>
     <!-- Disable GTK3 because it's not quite usable yet and it can make the tests hang (bug in IcedTea http://icedtea.classpath.org/bugzilla/show_bug.cgi?id=1736) -->
     <SWT_GTK3>0</SWT_GTK3>
 
     <!-- Sonar rule configuration -->
     <sonar-version>3.9.1.2184</sonar-version>
-    <jacoco-version>0.8.7</jacoco-version>
+    <jacoco-version>0.8.10</jacoco-version>
     <sonar.core.codeCoveragePlugin>jacoco</sonar.core.codeCoveragePlugin>
     <sonar.dynamicAnalysis>reuseReports</sonar.dynamicAnalysis>
     <sonar.java.source>${jdk.version}</sonar.java.source>
@@ -283,6 +283,26 @@
               </environmentVariables>
             </configuration>
           </plugin>
+          <plugin>
+            <groupId>org.eclipse.tycho</groupId>
+            <artifactId>target-platform-configuration</artifactId>
+            <configuration>
+              <dependency-resolution>
+                <extraRequirements>
+                  <requirement>
+                    <type>eclipse-plugin</type>
+                    <id>org.slf4j.binding.simple</id>
+                    <versionRange>1.7.30</versionRange>
+                  </requirement>
+                  <requirement>
+                    <type>eclipse-plugin</type>
+                    <id>org.eclipse.tracecompass.slf4j.binding.simple.properties</id>
+                    <versionRange>1.0.0</versionRange>
+                  </requirement>
+                </extraRequirements>
+              </dependency-resolution>
+            </configuration>
+          </plugin>
         </plugins>
       </build>
     </profile>
@@ -307,7 +327,7 @@
                <plugin>
                    <groupId>org.apache.maven.plugins</groupId>
                    <artifactId>maven-javadoc-plugin</artifactId>
-                   <version>3.1.0</version>
+                   <version>3.5.0</version>
                    <configuration>
                       <groups>
                          <group>
@@ -354,7 +374,7 @@
         <inherited>true</inherited>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
-        <version>3.0.0-M3</version>
+        <version>3.3.0</version>
         <executions>
           <execution>
             <id>enforce-maven-version</id>
@@ -404,7 +424,7 @@
               <groupId>org.eclipse.tracecompass.incubator</groupId>
               <artifactId>org.eclipse.tracecompass.incubator.target</artifactId>
               <classifier>${target-platform}</classifier>
-              <version>0.5.0-SNAPSHOT</version>
+              <version>0.6.0-SNAPSHOT</version>
             </artifact>
           </target>
         </configuration>
@@ -595,7 +615,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-resources-plugin</artifactId>
-          <version>3.0.2</version>
+          <version>3.3.1</version>
           <configuration>
             <encoding>UTF-8</encoding>
           </configuration>
@@ -604,13 +624,13 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-antrun-plugin</artifactId>
-          <version>1.8</version>
+          <version>3.1.0</version>
         </plugin>
 
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-dependency-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>3.6.0</version>
         </plugin>
 
         <plugin>
@@ -622,19 +642,19 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-site-plugin</artifactId>
-          <version>3.6</version>
+          <version>4.0.0-M9</version>
         </plugin>
 
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-clean-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>3.3.1</version>
         </plugin>
 
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-deploy-plugin</artifactId>
-          <version>2.8.2</version>
+          <version>3.1.1</version>
         </plugin>
 
         <plugin>
@@ -646,7 +666,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-project-info-reports-plugin</artifactId>
-          <version>2.9</version>
+          <version>3.4.5</version>
         </plugin>
 
         <plugin>

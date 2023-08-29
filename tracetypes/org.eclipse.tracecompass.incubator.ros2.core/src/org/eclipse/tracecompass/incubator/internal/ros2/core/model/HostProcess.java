@@ -11,6 +11,8 @@
 
 package org.eclipse.tracecompass.incubator.internal.ros2.core.model;
 
+import java.util.Comparator;
+
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.tracecompass.datastore.core.serialization.ISafeByteBufferReader;
 import org.eclipse.tracecompass.datastore.core.serialization.ISafeByteBufferWriter;
@@ -22,7 +24,10 @@ import com.google.common.base.Objects;
  *
  * @author Christophe Bedard
  */
-public class HostProcess {
+public class HostProcess implements Comparable<HostProcess> {
+
+    private static Comparator<HostProcess> COMPARATOR = Comparator.comparing(HostProcess::getHostId)
+            .thenComparing(HostProcess::getPid);
 
     private final @NonNull HostInfo fHostId;
     private final @NonNull Long fPid;
@@ -61,6 +66,11 @@ public class HostProcess {
     }
 
     @Override
+    public int compareTo(HostProcess o) {
+        return COMPARATOR.compare(this, o);
+    }
+
+    @Override
     public int hashCode() {
         return Objects.hashCode(fHostId, fPid);
     }
@@ -91,9 +101,16 @@ public class HostProcess {
      * @param buffer
      *            the buffer
      */
-    public void serialize(@NonNull ISafeByteBufferWriter buffer) {
-        fHostId.serialize(buffer);
+    public void serializeValue(@NonNull ISafeByteBufferWriter buffer) {
+        fHostId.serializeValue(buffer);
         buffer.putLong(fPid);
+    }
+
+    /**
+     * @return the serialized size
+     */
+    public int getSerializedValueSize() {
+        return fSerializedValueSize;
     }
 
     /**
@@ -105,12 +122,5 @@ public class HostProcess {
         HostInfo hostId = HostInfo.read(buffer);
         Long pid = buffer.getLong();
         return new HostProcess(hostId, pid);
-    }
-
-    /**
-     * @return the serialized size
-     */
-    public int getSerializedValueSize() {
-        return fSerializedValueSize;
     }
 }

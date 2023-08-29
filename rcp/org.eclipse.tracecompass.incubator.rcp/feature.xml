@@ -2,7 +2,7 @@
 <feature
       id="org.eclipse.tracecompass.incubator.rcp"
       label="%featureName"
-      version="0.5.0.qualifier"
+      version="0.6.0.qualifier"
       provider-name="%featureProvider"
       plugin="org.eclipse.tracecompass.incubator.rcp.branding"
       license-feature="org.eclipse.license"
@@ -48,6 +48,13 @@
       <import feature="org.eclipse.tracecompass.tmf" version="0.0.0" match="greaterOrEqual"/>
       <import feature="org.eclipse.platform" version="0.0.0" match="greaterOrEqual"/>
    </requires>
+
+   <plugin
+         id="jakarta.activation-api"
+         download-size="0"
+         install-size="0"
+         version="0.0.0"
+         unpack="false"/>
 
    <plugin
          id="javax.ws.rs"

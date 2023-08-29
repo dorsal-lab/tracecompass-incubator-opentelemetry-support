@@ -15,8 +15,6 @@ import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.tracecompass.datastore.core.serialization.ISafeByteBufferReader;
 import org.eclipse.tracecompass.datastore.core.serialization.ISafeByteBufferWriter;
 
-import com.google.common.base.Objects;
-
 /**
  * Unique identifier for a pointer or memory address value on a host. Combines
  * the {@link HostProcess} and the pointer to avoid collisions when analyzing
@@ -26,13 +24,16 @@ import com.google.common.base.Objects;
  *
  * @author Christophe Bedard
  */
-public class HostProcessPointer {
+public class HostProcessPointer extends HostProcessValue<@NonNull Long> {
 
-    private static final @NonNull String STRING_ID_SEP = "|"; //$NON-NLS-1$
+    /** Custom type value ID for this object */
+    public static final byte CUSTOM_TYPE_ID_HOST_PROCESS_POINTER = 73;
+    /** CustomStateValueFactory for this object */
+    @SuppressWarnings("restriction")
+    public static final @NonNull CustomStateValueFactory HOST_PROCESS_POINTER_VALUE_FACTORY = b -> HostProcessPointer.read(b);
+
     private static final @NonNull String HEX_PREFIX = "0x"; //$NON-NLS-1$
 
-    private final @NonNull HostProcess fHostProcess;
-    private final @NonNull Long fPointer;
     private final int fSerializedValueSize;
 
     /**
@@ -44,81 +45,52 @@ public class HostProcessPointer {
      *            the pointer/memory address value
      */
     public HostProcessPointer(@NonNull HostProcess hostProcess, @NonNull Long pointer) {
-        fHostProcess = hostProcess;
-        fPointer = pointer;
+        super(hostProcess, pointer);
 
         int size = 0;
-        size += fHostProcess.getSerializedValueSize();
+        size += super.getSerializedValueSize();
         size += Long.BYTES;
         fSerializedValueSize = size;
-    }
-
-    /**
-     * @return the host process
-     */
-    public HostProcess getHostProcess() {
-        return fHostProcess;
-    }
-
-    /**
-     * @return the PID
-     */
-    public @NonNull Long getPid() {
-        return fHostProcess.getPid();
     }
 
     /**
      * @return the pointer value
      */
     public @NonNull Long getPointer() {
-        return fPointer;
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(fHostProcess, fPointer);
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (obj == null) {
-            return false;
-        }
-        if (getClass() != obj.getClass()) {
-            return false;
-        }
-        HostProcessPointer o = (HostProcessPointer) obj;
-        return o.fHostProcess.equals(fHostProcess) && o.fPointer.equals(fPointer);
+        return super.getValue();
     }
 
     /**
-     * @return the string ID to uniquely represent this pointer
+     * @return whether the pointer is <code>nullptr</code>, i.e., 0
      */
-    public @NonNull String getStringId() {
-        return String.format(
-                "%s%s%s%d%s%s", //$NON-NLS-1$
-                HEX_PREFIX, Long.toHexString(getPointer()), STRING_ID_SEP, getPid(), STRING_ID_SEP, getHostProcess().getHostId().getId());
+    public boolean isNullptr() {
+        return 0 == getPointer();
+    }
+
+    @Override
+    protected @NonNull String valueToString() {
+        return HEX_PREFIX + Long.toHexString(getPointer());
     }
 
     @Override
     public @NonNull String toString() {
-        return String.format(
-                "HostProcessPointer: pointer=0x%s, pid=%d, hostId=[%s]", //$NON-NLS-1$
-                Long.toHexString(getPointer()), getPid(), getHostProcess().getHostId().toString());
+        return String.format("HostProcessPointer: pointer=%s", super.toString()); //$NON-NLS-1$
     }
 
-    /**
-     * Serialize this state value into the byte buffer.
-     *
-     * @param buffer
-     *            the buffer
-     */
-    public void serialize(@NonNull ISafeByteBufferWriter buffer) {
-        fHostProcess.serialize(buffer);
-        buffer.putLong(fPointer);
+    @Override
+    protected @NonNull Byte getCustomTypeId() {
+        return CUSTOM_TYPE_ID_HOST_PROCESS_POINTER;
+    }
+
+    @Override
+    public void serializeValue(@NonNull ISafeByteBufferWriter buffer) {
+        super.serializeValue(buffer);
+        buffer.putLong(getPointer());
+    }
+
+    @Override
+    public int getSerializedValueSize() {
+        return fSerializedValueSize;
     }
 
     /**
@@ -130,12 +102,5 @@ public class HostProcessPointer {
         HostProcess hostProcess = HostProcess.read(buffer);
         Long pointer = buffer.getLong();
         return new HostProcessPointer(hostProcess, pointer);
-    }
-
-    /**
-     * @return the serialized size
-     */
-    public int getSerializedValueSize() {
-        return fSerializedValueSize;
     }
 }
