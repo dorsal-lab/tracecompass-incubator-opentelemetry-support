@@ -323,7 +323,7 @@ abstract class SpanEvent implements RawEvent {
         return fSpan;
     }
 
-    public OtelEvent createEvent(OtelTrace trace, long rank, @NonNull ITmfTimestamp timestamp, @NonNull String eventId) {
+    public OtelEvent createEvent(OtelTrace trace, long rank, @NonNull ITmfTimestamp timestamp, @NonNull String eventId, @NonNull OtelEventType otelEventType) {
         ITmfEventField eventContent = new TmfEventField(
                 ITmfEventField.ROOT_FIELD_ID,
                 null,
@@ -335,7 +335,7 @@ abstract class SpanEvent implements RawEvent {
                         new TmfEventField(Constants.SpanEvents.Fields.SPAN, fSpan, null),
                 });
         ITmfEventType eventType = new TmfEventType(eventId, eventContent);
-        return new OtelEvent(trace, rank, timestamp, eventType, eventContent);
+        return new OtelEvent(trace, rank, timestamp, eventType, eventContent, otelEventType);
     }
 
 }
@@ -343,12 +343,20 @@ abstract class SpanEvent implements RawEvent {
 class SpanStartEvent extends SpanEvent {
 
     public SpanStartEvent(Resource resource, String resourceSchemaUrl, InstrumentationLibrary instrumentationLibrary, String instrumentationLibrarySchemaUrl, Span span) {
-        super(resource, resourceSchemaUrl, instrumentationLibrary, instrumentationLibrarySchemaUrl, span);
+        super(resource,
+                resourceSchemaUrl,
+                instrumentationLibrary,
+                instrumentationLibrarySchemaUrl,
+                span);
     }
 
     @Override
     public OtelEvent createEvent(@NonNull OtelTrace trace, long rank) {
-        return super.createEvent(trace, rank, TmfTimestamp.fromNanos(getSpan().getStartTimeUnixNano()), Constants.SpanEvents.START_SPAN_EVENT_TYPE_ID);
+        return super.createEvent(trace,
+                rank,
+                TmfTimestamp.fromNanos(getSpan().getStartTimeUnixNano()),
+                Constants.SpanEvents.START_SPAN_EVENT_TYPE_ID,
+                OtelEventType.START_SPAN);
     }
 
 }
@@ -356,12 +364,20 @@ class SpanStartEvent extends SpanEvent {
 class SpanEndEvent extends SpanEvent {
 
     public SpanEndEvent(Resource resource, String resourceSchemaUrl, InstrumentationLibrary instrumentationLibrary, String instrumentationLibrarySchemaUrl, Span span) {
-        super(resource, resourceSchemaUrl, instrumentationLibrary, instrumentationLibrarySchemaUrl, span);
+        super(resource,
+                resourceSchemaUrl,
+                instrumentationLibrary,
+                instrumentationLibrarySchemaUrl,
+                span);
     }
 
     @Override
     public OtelEvent createEvent(@NonNull OtelTrace trace, long rank) {
-        return super.createEvent(trace, rank, TmfTimestamp.fromNanos(getSpan().getEndTimeUnixNano()), Constants.SpanEvents.END_SPAN_EVENT_TYPE_ID);
+        return super.createEvent(trace,
+                rank,
+                TmfTimestamp.fromNanos(getSpan().getEndTimeUnixNano()),
+                Constants.SpanEvents.END_SPAN_EVENT_TYPE_ID,
+                OtelEventType.END_SPAN);
     }
 
 }

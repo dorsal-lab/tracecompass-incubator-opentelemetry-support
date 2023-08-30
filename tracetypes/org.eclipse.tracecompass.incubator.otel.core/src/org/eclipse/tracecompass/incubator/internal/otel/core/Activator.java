@@ -12,6 +12,8 @@
 package org.eclipse.tracecompass.incubator.internal.otel.core;
 
 import org.eclipse.tracecompass.common.core.TraceCompassActivator;
+import org.eclipse.tracecompass.incubator.internal.otel.core.event.matching.OtelMatchEventDefinition;
+import org.eclipse.tracecompass.tmf.core.event.matching.TmfTreeEventMatching;
 
 /**
  * Activator
@@ -39,6 +41,7 @@ public class Activator extends TraceCompassActivator {
 
     @Override
     protected void startActions() {
+        TmfTreeEventMatching.registerMatchObject(new OtelMatchEventDefinition());
     }
 
     @Override
